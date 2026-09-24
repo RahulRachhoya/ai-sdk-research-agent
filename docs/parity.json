@@ -1,0 +1,88 @@
+{
+  "queries": 300,
+  "bm25_token_ids_identical": 300,
+  "dense_cosine_vs_python": {
+    "min": 0.99999,
+    "mean": 0.999999
+  },
+  "embed_ms": {
+    "p50": 9.9,
+    "p95": 14.7
+  },
+  "hybrid_top10_identical_order": 260,
+  "hybrid_top10_mean_overlap": 0.998,
+  "python_reference": {
+    "dense": {
+      "ndcg@10": 0.713,
+      "recall@100": 0.942
+    },
+    "bm25": {
+      "ndcg@10": 0.683,
+      "recall@100": 0.921
+    },
+    "hybrid": {
+      "ndcg@10": 0.725,
+      "recall@100": 0.965
+    }
+  },
+  "qdrant_rest_node_http": {
+    "dense": {
+      "ndcg@10": 0.713,
+      "recall@100": 0.942,
+      "p50_ms": 3,
+      "p95_ms": 4.7
+    },
+    "bm25": {
+      "ndcg@10": 0.683,
+      "recall@100": 0.921,
+      "p50_ms": 1.9,
+      "p95_ms": 3
+    },
+    "hybrid": {
+      "ndcg@10": 0.724,
+      "recall@100": 0.965,
+      "p50_ms": 3,
+      "p95_ms": 4.1
+    }
+  },
+  "qdrant_rest_undici_request": {
+    "dense": {
+      "ndcg@10": 0.713,
+      "recall@100": 0.942,
+      "p50_ms": 15.2,
+      "p95_ms": 17.2
+    },
+    "bm25": {
+      "ndcg@10": 0.683,
+      "recall@100": 0.921,
+      "p50_ms": 15.2,
+      "p95_ms": 16.7
+    },
+    "hybrid": {
+      "ndcg@10": 0.72,
+      "recall@100": 0.965,
+      "p50_ms": 15.2,
+      "p95_ms": 17.2
+    }
+  },
+  "qdrant_rest_js_client_fetch": {
+    "dense": {
+      "ndcg@10": 0.713,
+      "recall@100": 0.942,
+      "p50_ms": 60.9,
+      "p95_ms": 65.8
+    },
+    "bm25": {
+      "ndcg@10": 0.683,
+      "recall@100": 0.921,
+      "p50_ms": 15.2,
+      "p95_ms": 17.9
+    },
+    "hybrid": {
+      "ndcg@10": 0.724,
+      "recall@100": 0.965,
+      "p50_ms": 60.3,
+      "p95_ms": 65.2
+    }
+  }
+}
