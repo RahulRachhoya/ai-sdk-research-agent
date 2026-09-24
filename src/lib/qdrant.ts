@@ -6,6 +6,7 @@
 // undici.request and ~60 ms via fetch(), which @qdrant/js-client-rest uses. scripts/parity.mts
 // measures all three; the results are in docs/parity.json.
 import http from "node:http";
+import https from "node:https";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { request } from "undici";
 import { denseQuery } from "./dense";
@@ -15,9 +16,12 @@ export const COLLECTION = "scifact";
 const HNSW_EF = 128;
 const PREFETCH = 100;
 const QDRANT_URL = process.env.QDRANT_URL ?? "http://127.0.0.1:6333";
+const QDRANT_API_KEY = process.env.QDRANT_API_KEY; // Qdrant Cloud; unset for the local container
 
-export const qdrant = new QdrantClient({ url: QDRANT_URL });
-const agent = new http.Agent({ keepAlive: true });
+export const qdrant = new QdrantClient({ url: QDRANT_URL, apiKey: QDRANT_API_KEY });
+const TLS = QDRANT_URL.startsWith("https:");
+const agent = TLS ? new https.Agent({ keepAlive: true }) : new http.Agent({ keepAlive: true });
+const AUTH: Record<string, string> = QDRANT_API_KEY ? { "api-key": QDRANT_API_KEY } : {};
 
 export type Transport = "node-http" | "undici" | "js-client";
 type Sparse = { indices: number[]; values: number[] };
@@ -27,12 +31,12 @@ const QUERY_URL = `${QDRANT_URL}/collections/${COLLECTION}/points/query`;
 
 function post(payload: string): Promise<{ status: number; text: string }> {
   return new Promise((resolve, reject) => {
-    const req = http.request(
+    const req = (TLS ? https : http).request(
       QUERY_URL,
       {
         method: "POST",
         agent,
-        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(payload) },
+        headers: { ...AUTH, "content-type": "application/json", "content-length": Buffer.byteLength(payload) },
       },
       (res) => {
         let text = "";
@@ -54,7 +58,7 @@ async function query(body: Record<string, unknown>, transport: Transport): Promi
   let status: number;
   let text: string;
   if (transport === "undici") {
-    const res = await request(QUERY_URL, { method: "POST", headers: { "content-type": "application/json" }, body: payload });
+    const res = await request(QUERY_URL, { method: "POST", headers: { ...AUTH, "content-type": "application/json" }, body: payload });
     [status, text] = [res.statusCode, await res.body.text()];
   } else {
     ({ status, text } = await post(payload));

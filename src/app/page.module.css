@@ -97,3 +97,23 @@
 .form button:disabled {
   opacity: 0.5;
 }
+
+/* Assistant answers are Markdown. */
+.assistant {
+  white-space: normal;
+}
+
+.assistant > p,
+.assistant > ul,
+.assistant > ol {
+  margin: 6px 0;
+}
+
+.assistant ul,
+.assistant ol {
+  padding-left: 1.3em;
+}
+
+.header a {
+  color: inherit;
+}

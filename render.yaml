@@ -1,0 +1,21 @@
+# Render Blueprint for the search service (service/search.mts). The Next.js app runs on Vercel.
+services:
+  - type: web
+    name: scifact-search
+    runtime: node
+    plan: free
+    region: virginia
+    # --warm downloads the embedding model into node_modules at build time, so a cold start
+    # doesn't fetch it again.
+    buildCommand: npm ci && npx tsx service/search.mts --warm
+    startCommand: npx tsx service/search.mts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: SEARCH_TOKEN
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false

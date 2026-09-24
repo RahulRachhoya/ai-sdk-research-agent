@@ -7,6 +7,7 @@
 //   tool_calls  {session_id, user_id, ts, tool, args, ok, error, latency_ms, result_chars}
 //   memories    {user_id, text, session_id, created_at}
 //   chats       {_id: chat_id, user_id, messages: UIMessage[], updated_at}
+//   requests    {user_id, ip, ts}  (web route only, TTL one day)
 //
 // The Python agent kept conversation state in LangGraph checkpoints. Here the AI SDK's UIMessage
 // list is the state: loaded before each turn, saved whole when the stream ends.
@@ -22,6 +23,8 @@ export const DB = process.env.MONGODB_DB ?? "agent_lab_ts";
 // rate). Unknown models are logged with cost_usd: null rather than a guessed number.
 const PRICES: Record<string, { in: number; out: number; cacheRead: number; cacheWrite: number }> = {
   "global.anthropic.claude-haiku-4-5-20251001-v1:0": { in: 1.0, out: 5.0, cacheRead: 0.1, cacheWrite: 1.25 },
+  // Groq's published on-demand price; cached input is billed at the full input price here.
+  "openai/gpt-oss-120b": { in: 0.15, out: 0.6, cacheRead: 0.15, cacheWrite: 0.15 },
 };
 
 const globalForMongo = globalThis as unknown as { mongo?: Promise<MongoClient> };
@@ -53,6 +56,11 @@ export async function ensureIndexes(d: Db): Promise<void> {
     d.collection("memories").createIndex({ user_id: 1, text: "text" }),
     d.collection("memories").createIndex({ user_id: 1, created_at: -1 }),
     d.collection("chats").createIndex({ user_id: 1, updated_at: -1 }),
+    // Rate limiting for the public deployment (src/lib/limits.ts); rows expire after a day.
+    d.collection("requests").createIndex({ ts: 1 }, { expireAfterSeconds: 86_400 }),
+    d.collection("requests").createIndex({ user_id: 1, ts: -1 }),
+    d.collection("requests").createIndex({ ip: 1, ts: -1 }),
+    d.collection("llm_calls").createIndex({ ts: -1 }),
   ]);
 }
 
@@ -102,6 +110,12 @@ type ChatDoc = { _id: string; user_id: string; messages: UIMessage[]; updated_at
 export async function loadChat(d: Db, chatId: string): Promise<UIMessage[]> {
   const doc = await d.collection<ChatDoc>("chats").findOne({ _id: chatId });
   return doc?.messages ?? [];
+}
+
+/** The owner of a chat, or null if it doesn't exist yet. */
+export async function chatOwner(d: Db, chatId: string): Promise<string | null> {
+  const doc = await d.collection<ChatDoc>("chats").findOne({ _id: chatId }, { projection: { user_id: 1 } });
+  return doc?.user_id ?? null;
 }
 
 export async function saveChat(d: Db, chatId: string, userId: string, messages: UIMessage[]) {
