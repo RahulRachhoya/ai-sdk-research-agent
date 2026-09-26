@@ -30,6 +30,7 @@ const GROQ = process.env.LLM_PROVIDER === "groq";
 export const MODEL = GROQ
   ? (process.env.GROQ_MODEL ?? "openai/gpt-oss-120b")
   : "global.anthropic.claude-haiku-4-5-20251001-v1:0";
+export const MODEL_LABEL = GROQ ? `${MODEL} on Groq` : "Claude Haiku 4.5 on Bedrock";
 const MAX_STEPS = 8;
 
 const llm = GROQ

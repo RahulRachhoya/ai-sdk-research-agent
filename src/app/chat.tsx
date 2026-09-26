@@ -13,6 +13,7 @@ type Props = {
   initialMessages: AgentUIMessage[];
   readOnly: boolean;
   exampleId: string;
+  modelLabel: string;
 };
 
 export default function Chat({
@@ -20,6 +21,7 @@ export default function Chat({
   initialMessages,
   readOnly,
   exampleId,
+  modelLabel,
 }: Props) {
   const [input, setInput] = useState("");
   const { messages, sendMessage, status, error } = useChat<AgentUIMessage>({
@@ -40,7 +42,7 @@ export default function Chat({
       <header className={styles.header}>
         <h1>SciFact research agent</h1>
         <p>
-          Claude Haiku 4.5 on Bedrock · Qdrant hybrid search · MongoDB memory.
+          {modelLabel} · Qdrant hybrid search · MongoDB memory.
           Chat <code>{id}</code>
         </p>
         <p>

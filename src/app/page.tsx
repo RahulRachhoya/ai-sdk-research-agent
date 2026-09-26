@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { AgentUIMessage } from "@/lib/agent";
+import { MODEL_LABEL, type AgentUIMessage } from "@/lib/agent";
 import { chatOwner, db, loadChat } from "@/lib/memory";
 import { wakeSearch } from "@/lib/search";
 import Chat from "./chat";
@@ -28,6 +28,7 @@ export default async function Page({ searchParams }: PageProps<"/">) {
       initialMessages={messages}
       readOnly={chat === EXAMPLE_CHAT}
       exampleId={EXAMPLE_CHAT}
+      modelLabel={MODEL_LABEL}
     />
   );
 }

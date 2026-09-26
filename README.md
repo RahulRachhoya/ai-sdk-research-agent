@@ -160,6 +160,30 @@ as `undefined` (`providerMetadata`, `rawInput`, ...). The MongoDB Node driver st
 `new MongoClient(uri, { ignoreUndefined: true })`, and `tests/memory.test.ts` has a round-trip
 regression test that fails without it.
 
+## Public deployment
+
+The same code runs as a public demo. Three things change when anyone on the internet can open it:
+
+- **No AWS credentials in the deployment.** `LLM_PROVIDER=groq` swaps the model for
+  `openai/gpt-oss-120b` on Groq, so the deployment only holds a Groq API key. Every number in this
+  README is from Claude Haiku 4.5 on Bedrock.
+- **Search runs as its own service.** The embedding runtime doesn't fit in a Vercel function
+  (onnxruntime-node alone is about 290 MB against a 250 MB limit). `service/search.mts` embeds the
+  query and runs the hybrid query on Render, and the Vercel app calls it with a shared bearer
+  token. A free Render service sleeps when idle, so opening the page sends a wake-up request while
+  the visitor is still typing.
+- **Spend is capped.** Each browser gets a random visitor id in a cookie (`src/proxy.ts`), so
+  memories and chats are per visitor. `src/lib/limits.ts` allows 15 messages an hour per visitor
+  and 40 per IP, and stops all chats once the day's model cost (summed from `llm_calls`) reaches $1.
+  Messages are capped at 1,000 characters and chats at 20 messages. A read-only example chat (the
+  demo run's session b) costs nothing to open.
+
+```
+browser ─▶ Vercel: Next.js page + /api/chat (limits) ─▶ Groq (gpt-oss-120b)
+                         │                            ─▶ MongoDB Atlas (chats, memories, telemetry)
+                         └─ bearer token ─▶ Render: service/search.mts ─▶ Qdrant Cloud (scifact)
+```
+
 ## Run it
 
 Needs agent-memory-lab's Docker services (MongoDB and Qdrant) with its SciFact collection
@@ -176,6 +200,12 @@ npm run report -- ts-     # aggregation report over the telemetry
 npm run build && npm start   # chat UI on http://localhost:3000
 ```
 
+To deploy, fill in `.env.deploy` (git-ignored), then copy the local Qdrant collection and the
+example chat to the hosted services with `npx tsx scripts/deploy-data.mts`. Create the search
+service on Render from `render.yaml` (it asks for `SEARCH_TOKEN`, `QDRANT_URL` and
+`QDRANT_API_KEY`). The Vercel project needs `LLM_PROVIDER=groq`, `GROQ_API_KEY`, `MONGODB_URI`,
+`SEARCH_URL` (the Render service's URL) and the same `SEARCH_TOKEN`.
+
 The fixture in `fixtures/` is committed. Regenerating it needs agent-memory-lab next to this repo:
 `uv run --project ../agent-memory-lab python scripts/make_fixture.py`.
 
@@ -190,15 +220,22 @@ src/lib/
   metrics.ts       nDCG@10, Recall@100, percentiles (same as the Python metrics.py)
   memory.ts        MongoDB: schema, indexes, sessions, memories, chats, telemetry, pricing
   agent.ts         tools, prompt, streamText loop with lifecycle-callback telemetry: chatTurn()
+  search.ts        search_papers backend: Qdrant in-process locally, the search service when deployed
+  limits.ts        per-visitor, per-IP and daily-budget limits for the public route
+src/proxy.ts       gives each browser a random visitor id cookie
+service/
+  search.mts       the deployed search service: embed + hybrid query behind a bearer token
 src/app/
   api/chat/route.ts   POST {id, message} → UI message stream
   page.tsx            server component: loads the chat from MongoDB by ?chat=<id>
-  chat.tsx            client component: useChat, renders text and tool parts
+  chat.tsx            client component: useChat, renders Markdown answers and tool parts
 scripts/
   parity.mts       TS vs Python retrieval parity and client latency → docs/parity.json
   demo.mts         the scripted 5-turn demo through chatTurn()
   report.mts       aggregation pipelines: per session, per tool, LLM latency and TTFT
   make_fixture.py  writes fixtures/scifact-test.json from the Python reference
+  deploy-data.mts  copies the Qdrant collection and the example chat to Qdrant Cloud and Atlas
+render.yaml        Render Blueprint for the search service
 tests/             vitest: BM25 parity, murmur3, cost, MongoDB round trips
 ```
 
@@ -209,9 +246,12 @@ tests/             vitest: BM25 parity, murmur3, cost, MongoDB round trips
   and for several questions the agent correctly says the abstracts don't cover them.
 - **One machine.** The transport latencies are from Windows with Docker Desktop; on Linux the
   `fetch` and `undici` penalties may be smaller or absent.
-- **No auth or rate limiting on the chat route.** The user id is fixed per deployment
-  (`DEMO_USER`), and anyone who can reach the route can spend Bedrock tokens.
-- **Answers render as plain text**, so Markdown shows as raw characters in the UI.
+- **Limits, not auth.** Visitor ids are cookies and the per-IP limit trusts `x-forwarded-for`, so
+  someone clearing cookies from many addresses gets past both. The daily budget is the real
+  ceiling. Limit checks and the request insert aren't atomic, so a burst of parallel requests can
+  go a few over.
+- **The public demo runs a different model.** Its answers and costs aren't comparable with the
+  Bedrock numbers above.
 - **No prompt caching.** The stable prefix (instructions plus tool schemas) is well under Haiku's
   minimum cacheable length. For longer histories, caching the conversation prefix would be the
   first cost lever.
