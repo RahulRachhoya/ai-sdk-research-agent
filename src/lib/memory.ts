@@ -34,7 +34,12 @@ export async function db(name = DB): Promise<Db> {
   // ignoreUndefined: by default the driver stores `undefined` fields as null, and a UIMessage
   // saved that way (rawInput: null, providerMetadata: null, ...) fails validateUIMessages when
   // the chat is loaded for the next turn.
-  globalForMongo.mongo ??= new MongoClient(URI, { ignoreUndefined: true }).connect();
+  // A failed connect is not cached: the next request retries instead of reusing the rejection
+  // for the life of a warm serverless instance.
+  globalForMongo.mongo ??= new MongoClient(URI, { ignoreUndefined: true }).connect().catch((err) => {
+    globalForMongo.mongo = undefined;
+    throw err;
+  });
   return (await globalForMongo.mongo).db(name);
 }
 
