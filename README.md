@@ -4,6 +4,9 @@ A streaming research agent in TypeScript: **Next.js + the Vercel AI SDK**, **Cla
 AWS Bedrock**, hybrid retrieval from **Qdrant** (BM25 + dense, fused with RRF) and **MongoDB** for
 chat history, long-term memory and per-call telemetry.
 
+**Live demo: [ai-sdk-research-agent.vercel.app](https://ai-sdk-research-agent.vercel.app)**
+(runs on Groq instead of Bedrock, see [Public deployment](#public-deployment)).
+
 It is the TypeScript counterpart of
 [agent-memory-lab](https://github.com/RahulRachhoya/agent-memory-lab), which built the same agent
 in Python with LangGraph and benchmarked the retrieval. This repo reuses that Qdrant collection
@@ -162,7 +165,8 @@ regression test that fails without it.
 
 ## Public deployment
 
-The same code runs as a public demo. Three things change when anyone on the internet can open it:
+The same code runs as a public demo at
+[ai-sdk-research-agent.vercel.app](https://ai-sdk-research-agent.vercel.app). Three things change when anyone on the internet can open it:
 
 - **No AWS credentials in the deployment.** `LLM_PROVIDER=groq` swaps the model for
   `openai/gpt-oss-120b` on Groq, so the deployment only holds a Groq API key. Every number in this
@@ -204,7 +208,9 @@ To deploy, fill in `.env.deploy` (git-ignored), then copy the local Qdrant colle
 example chat to the hosted services with `npx tsx scripts/deploy-data.mts`. Create the search
 service on Render from `render.yaml` (it asks for `SEARCH_TOKEN`, `QDRANT_URL` and
 `QDRANT_API_KEY`). The Vercel project needs `LLM_PROVIDER=groq`, `GROQ_API_KEY`, `MONGODB_URI`,
-`SEARCH_URL` (the Render service's URL) and the same `SEARCH_TOKEN`.
+`SEARCH_URL` (the Render service's URL) and the same `SEARCH_TOKEN`. Vercel functions connect from
+changing IPs, so the Atlas IP Access List needs `0.0.0.0/0`; without it every request fails with a
+TLS `MongoServerSelectionError`.
 
 The fixture in `fixtures/` is committed. Regenerating it needs agent-memory-lab next to this repo:
 `uv run --project ../agent-memory-lab python scripts/make_fixture.py`.
