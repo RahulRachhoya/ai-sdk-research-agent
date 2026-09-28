@@ -28,7 +28,8 @@ function send(res: http.ServerResponse, status: number, body: unknown) {
 
 http
   .createServer(async (req, res) => {
-    if (req.method === "GET" && req.url === "/health")
+    // Uptime monitors (UptimeRobot keeps the free instance awake) default to HEAD on the root URL.
+    if ((req.method === "GET" || req.method === "HEAD") && (req.url === "/" || req.url === "/health"))
       return send(res, 200, { ok: true });
     if (req.method !== "POST" || req.url !== "/search")
       return send(res, 404, { error: "not found" });
